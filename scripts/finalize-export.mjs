@@ -19,7 +19,49 @@ const OUT = join(ROOT, 'out')
 const HTACCESS_SRC = join(ROOT, 'deploy', '.htaccess')
 
 if (!existsSync(OUT)) {
-  console.error('\n  [export]  out/ does not exist — did `next build` run with output: "export"?\n')
+  // A bare "out/ is missing" is not actionable. The realistic causes are a
+  // config that did not apply, a build that wrote somewhere else, or a platform
+  // that cleaned between `build` and `postbuild` — so print enough to tell them
+  // apart in one shot instead of over a round of guessing.
+  const configPath = join(ROOT, 'next.config.mjs')
+  let exportConfigured = 'next.config.mjs NOT FOUND'
+  if (existsSync(configPath)) {
+    const config = readFileSync(configPath, 'utf8')
+    exportConfigured = /output\s*:\s*['"]export['"]/.test(config)
+      ? "yes — output: 'export' is present"
+      : "NO — output: 'export' is missing from next.config.mjs"
+  }
+
+  const siblings = existsSync(ROOT)
+    ? readdirSync(ROOT).filter((entry) => {
+        try {
+          return statSync(join(ROOT, entry)).isDirectory()
+        } catch {
+          return false
+        }
+      })
+    : []
+
+  console.error(`
+  [export]  FAILED: ${OUT} does not exist.
+
+  Diagnostics
+    expected out/ at   ${OUT}
+    project root       ${ROOT}
+    process cwd        ${process.cwd()}
+    export configured  ${exportConfigured}
+    .next present      ${existsSync(join(ROOT, '.next')) ? 'yes' : 'no'}
+    dirs at root       ${siblings.join(', ') || '(none)'}
+    out/ at cwd        ${existsSync(join(process.cwd(), 'out')) ? 'YES — build wrote it relative to cwd, not to the project root' : 'no'}
+
+  Most likely causes
+    1. .next present but no out/  -> the build ran WITHOUT output: 'export'.
+    2. out/ exists at cwd         -> build and this script disagree on the root.
+    3. Neither present            -> the build output was cleaned or discarded
+                                     between 'build' and 'postbuild', which some
+                                     hosted build pipelines do. Build locally and
+                                     upload out/, or deploy via GitHub Actions.
+`)
   process.exit(1)
 }
 
