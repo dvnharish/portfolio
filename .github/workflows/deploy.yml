@@ -44,9 +44,12 @@ jobs:
         run: npm run verify
 
   deploy:
-    name: Build and upload
+    name: Build and publish
     needs: verify
     runs-on: ubuntu-latest
+    # Needed to force-push the built site to the `deploy` branch.
+    permissions:
+      contents: write
     # Create this environment in repo Settings to add a manual approval gate.
     environment: production
     steps:
@@ -76,7 +79,43 @@ jobs:
           done
           echo "out/ contains $(find out -type f | wc -l) files, $(du -sh out | cut -f1)"
 
+      # ---------------------------------------------------------------------
+      # Primary: publish the built site to a `deploy` branch whose ROOT is the
+      # site root, then let Hostinger's Git integration pull that branch.
+      #
+      # Hostinger checks a repo out into public_html verbatim. Pointing it at
+      # `main` would serve the site from /out/ instead of /, leave .htaccess at
+      # public/.htaccess where Apache ignores it, and expose package.json,
+      # next.config.mjs and scripts/ publicly. A branch containing only out/'s
+      # contents makes the checkout itself the correct document root.
+      #
+      # Uses the built-in GITHUB_TOKEN, so this needs no secrets at all. Each
+      # run is a fresh single-commit orphan history, so the branch never grows.
+      # ---------------------------------------------------------------------
+      - name: Publish built site to deploy branch
+        run: |
+          cd out
+          git init -q
+          git checkout -qb deploy
+          # Byte-for-byte fidelity. This branch carries build artifacts, not
+          # source: line-ending normalisation must never touch minified JS or
+          # .htaccess. Set explicitly so the result cannot depend on the
+          # runner's git defaults.
+          git config core.autocrlf false
+          git config core.eol lf
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Deploy ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}"
+          git push -q --force \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            deploy
+          echo "Published $(git ls-files | wc -l) files to the 'deploy' branch."
+
+      # Optional second channel. Runs only if the FTP secrets are configured, so
+      # the Git-based deploy above works with no setup.
       - name: Upload to Hostinger over FTPS
+        if: ${{ secrets.FTP_HOST != '' }}
         # Pinned to a release tag. This action receives your FTP credentials, so
         # pinning to a commit SHA instead is stronger - see README.
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

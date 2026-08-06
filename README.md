@@ -155,6 +155,40 @@ with no toolchain behind it.
 audit, and **fails the build** if a `localhost` URL leaked into the HTML or if
 `index.html`, `robots.txt`, `sitemap.xml`, `og.jpg` or `404.html` is missing.
 
+### Deploying via Hostinger's Git integration
+
+Hostinger checks a repository out into `public_html` **verbatim**. That makes the
+branch you point it at the single most important setting.
+
+**Point it at `deploy`, never at `main`.**
+
+Pointing it at `main` puts the repository in `public_html`, which means:
+
+- the site is served from `/out/` instead of `/`
+- `.htaccess` lands at `public/.htaccess`, where Apache ignores it — no HTTPS
+  redirect, no cache headers, no compression, no security headers, no 404
+- `package.json`, `next.config.mjs` and `scripts/` become publicly readable
+
+The `deploy` branch contains **only the built site, at root**, so the checkout
+*is* the correct document root. It is produced automatically by the workflow on
+every push to `main` — a fresh single-commit orphan history each time, so the
+branch never grows.
+
+In hPanel → **Advanced → Git**:
+
+| Field | Value |
+| --- | --- |
+| Repository | `https://github.com/dvnharish/portfolio.git` |
+| Branch | `deploy` |
+| Directory | leave empty (deploys to `public_html`) |
+
+Order matters on first setup: push to `main`, let the workflow finish and create
+`deploy`, *then* connect Hostinger. The branch does not exist until the first
+successful run.
+
+Do not let Hostinger run a build. There is no `package.json` on `deploy`, so it
+has nothing to detect — the branch is already the finished artifact.
+
 ### Continuous deployment from GitHub
 
 `.github/workflows/deploy.yml` builds on every push to `main` and uploads `out/`
