@@ -115,6 +115,35 @@ jobs:
           echo "probably lands INSIDE the site root. Add a repository VARIABLE"
           echo "named FTP_SERVER_DIR with the value ./ and re-run."
 
+      # Reports the SHAPE of each credential, never its value. A trailing
+      # newline picked up while copying is invisible in the GitHub UI and
+      # produces "530 Login incorrect" with otherwise-correct credentials, so
+      # length and surrounding whitespace are the two things worth seeing.
+      - name: Check credential shape (no values printed)
+        if: env.FTP_HOST != ''
+        run: |
+          report() {
+            name="$1"; value="$2"
+            len=${#value}
+            trimmed=$(printf '%s' "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            tlen=${#trimmed}
+            note="ok"
+            [ "$len" -eq 0 ] && note="EMPTY - secret is not set or name is misspelt"
+            [ "$len" -ne "$tlen" ] && note="LEADING/TRAILING WHITESPACE - re-enter this secret"
+            case "$value" in *"$(printf '\r')"*) note="CONTAINS CARRIAGE RETURN - re-enter this secret";; esac
+            printf '  %-13s chars=%-4s trimmed=%-4s %s\n' "$name" "$len" "$tlen" "$note"
+          }
+          report FTP_HOST "$FTP_HOST"
+          report FTP_USERNAME "$FTP_USERNAME"
+          report FTP_PASSWORD "$FTP_PASSWORD"
+          echo
+          case "$FTP_USERNAME" in
+            *@*|*.*) echo "  username contains '@' or '.' - matches Hostinger's usual format" ;;
+            *) echo "  username has no '@' or '.' - Hostinger FTP usernames are normally" ;
+               echo "  like u609197946.yourdomain.com or deploy@yourdomain.com. Confirm you" ;
+               echo "  copied it verbatim from hPanel > Files > FTP Accounts." ;;
+          esac
+
       - name: Upload to Hostinger over FTPS
         if: env.FTP_HOST != ''
         # Pinned to a release tag. This action receives your FTP credentials, so
