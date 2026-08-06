@@ -103,6 +103,18 @@ jobs:
       # Skipped automatically until the FTP secrets exist, so the repo is never
       # in a broken state waiting on configuration.
       # ---------------------------------------------------------------------
+      # Echoed so a wrong path is obvious in the log. FTP_SERVER_DIR is a
+      # variable rather than a secret precisely so it is not masked here.
+      - name: Show FTP target
+        if: env.FTP_HOST != ''
+        run: |
+          echo "server-dir : ${{ vars.FTP_SERVER_DIR || '/public_html/' }}"
+          echo "local-dir  : ./out/  ($(find out -type f | wc -l) files)"
+          echo
+          echo "If the upload below fails with a directory error, your FTP user"
+          echo "probably lands INSIDE the site root. Add a repository VARIABLE"
+          echo "named FTP_SERVER_DIR with the value ./ and re-run."
+
       - name: Upload to Hostinger over FTPS
         if: env.FTP_HOST != ''
         # Pinned to a release tag. This action receives your FTP credentials, so
