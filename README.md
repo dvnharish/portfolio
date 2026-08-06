@@ -155,7 +155,73 @@ with no toolchain behind it.
 audit, and **fails the build** if a `localhost` URL leaked into the HTML or if
 `index.html`, `robots.txt`, `sitemap.xml`, `og.jpg` or `404.html` is missing.
 
-### Uploading
+### Continuous deployment from GitHub
+
+`.github/workflows/deploy.yml` builds on every push to `main` and uploads `out/`
+to Hostinger over FTPS. The build cannot run on Hostinger itself — no Node
+runtime — so CI produces the static export and only the result is transferred.
+
+The workflow gates on `typecheck`, `lint` and `verify` before it will deploy, and
+asserts the critical files exist in `out/` before transferring anything.
+
+**Repository → Settings → Secrets and variables → Actions.**
+
+Three **secrets** (tab: *Secrets*):
+
+| Secret | Where to find it | Example |
+| --- | --- | --- |
+| `FTP_HOST` | hPanel → Files → FTP Accounts | `ftp.harishduddupudi.com` |
+| `FTP_USERNAME` | same page | `u123456789.deploy` |
+| `FTP_PASSWORD` | set when you create the FTP account | |
+
+Two optional **variables** (tab: *Variables*), both with working defaults:
+
+| Variable | Default | When to set it |
+| --- | --- | --- |
+| `FTP_SERVER_DIR` | `/public_html/` | Your FTP user lands somewhere else — see below |
+| `NEXT_PUBLIC_SITE_URL` | `https://harishduddupudi.com` | The domain changes |
+
+`FTP_SERVER_DIR` is a variable rather than a secret on purpose: it is not
+sensitive, and secrets are masked in logs — which is precisely the information
+you need when the path is wrong. Verify it rather than guess. Connect once with
+FileZilla and look at where you land:
+
+- landing in the account home that *contains* `public_html` → `/public_html/`
+- landing directly inside the site root → `./`
+
+A wrong value uploads a perfectly good site into the wrong directory and serves
+nothing.
+
+Uploads are **incremental** — the action keeps a state file on the server and
+sends only changed files, so the 89-frame sequence is not re-transferred on every
+deploy. That state file is a dotfile, which `.htaccess` already blocks from being
+served. `dangerous-clean-slate` is deliberately off; enabling it would wipe
+`public_html` on every run.
+
+#### Supply-chain note
+
+`SamKirkland/FTP-Deploy-Action` receives your FTP credentials. It is pinned to a
+release tag, but tags are mutable — pinning to a commit SHA is stronger:
+
+```yaml
+uses: SamKirkland/FTP-Deploy-Action@<full-40-char-sha>
+```
+
+If you would rather no third party touch the credentials at all, replace that
+step with `lftp`, which keeps everything in-repo:
+
+```yaml
+- run: sudo apt-get update && sudo apt-get install -y lftp
+- run: |
+    lftp -c "set ftp:ssl-force true; set ftp:ssl-protect-data true; \
+      open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' ${{ secrets.FTP_HOST }}; \
+      mirror -R --only-newer --verbose out/ ${{ secrets.FTP_SERVER_DIR }}"
+```
+
+Add `--delete` to that `mirror` only once you have confirmed the target path is
+correct — it removes remote files absent locally.
+
+### Uploading manually
 
 Package it:
 

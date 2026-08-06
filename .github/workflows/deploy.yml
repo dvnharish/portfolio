@@ -1,0 +1,103 @@
+name: Build and deploy to Hostinger
+
+# Hostinger shared hosting is Apache/LiteSpeed with no Node runtime, so the
+# build has to happen here and only the static `out/` directory is uploaded.
+on:
+  push:
+    branches: [main]
+  # Lets you re-deploy without a code change (e.g. after rotating FTP creds).
+  workflow_dispatch:
+
+# Least privilege: this workflow only reads the repo.
+permissions:
+  contents: read
+
+# Never let two deploys interleave over FTP - a half-uploaded site is worse
+# than a stale one. Queue instead of cancelling, so the last push always wins.
+concurrency:
+  group: hostinger-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22, not 20: `npm run verify` uses --experimental-strip-types, which
+          # only exists from Node 22.6.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Overlay timing contract
+        run: npm run verify
+
+  deploy:
+    name: Build and upload
+    needs: verify
+    runs-on: ubuntu-latest
+    # Create this environment in repo Settings to add a manual approval gate.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # prebuild regenerates the frame manifest, image derivatives and OG card.
+      # postbuild copies deploy/.htaccess into out/ and fails the build on a
+      # leaked localhost URL or a missing required file.
+      - name: Build static export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://harishduddupudi.com' }}
+
+      # Cheap insurance: the deploy is worthless without these, and a silent
+      # miss is hard to spot on a live site.
+      - name: Assert critical files exist
+        run: |
+          for f in index.html 404.html .htaccess robots.txt sitemap.xml og.jpg; do
+            test -f "out/$f" || { echo "::error::out/$f missing"; exit 1; }
+          done
+          echo "out/ contains $(find out -type f | wc -l) files, $(du -sh out | cut -f1)"
+
+      - name: Upload to Hostinger over FTPS
+        # Pinned to a release tag. This action receives your FTP credentials, so
+        # pinning to a commit SHA instead is stronger - see README.
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./out/
+          # A repo VARIABLE, not a secret: it is not sensitive, and secrets are
+          # masked in logs - which is exactly what you need to see when the path
+          # is wrong. Override in Settings > Variables if your FTP user lands
+          # inside the site root rather than above it.
+          server-dir: ${{ vars.FTP_SERVER_DIR || '/public_html/' }}
+          # Incremental: the action keeps a state file on the server and uploads
+          # only what changed, so the 89-frame sequence is not re-sent every time.
+          # `dangerous-clean-slate` is deliberately NOT set - it would wipe
+          # public_html on every run.
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
