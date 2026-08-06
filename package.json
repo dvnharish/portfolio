@@ -1,0 +1,40 @@
+{
+  "name": "harish-duddupudi-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "gen:sequence": "node scripts/generate-placeholder-sequence.mjs",
+    "gen:manifest": "node scripts/build-manifest.mjs",
+    "gen:og": "node scripts/generate-og.mjs",
+    "gen:images": "node scripts/build-images.mjs",
+    "weight": "node scripts/build-manifest.mjs --report-only",
+    "predev": "node scripts/build-manifest.mjs && node scripts/build-images.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/build-manifest.mjs && node scripts/build-images.mjs && node scripts/generate-og.mjs",
+    "build": "next build",
+    "postbuild": "node scripts/finalize-export.mjs",
+    "preview": "node scripts/preview-export.mjs",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "verify": "node --experimental-strip-types --no-warnings scripts/verify-overlay-timing.mjs"
+  },
+  "dependencies": {
+    "framer-motion": "^11.11.17",
+    "next": "^14.2.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.18",
+    "postcss": "^8.4.49",
+    "sharp": "^0.33.5",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
+  }
+}

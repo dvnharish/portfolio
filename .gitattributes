@@ -1,0 +1,19 @@
+# Normalise line endings so a Windows checkout does not commit CRLF and turn
+# every future diff into noise. `.htaccess` in particular is safer as LF.
+* text=auto eol=lf
+
+# Binary assets: never diff, never touch line endings.
+*.webp  binary
+*.avif  binary
+*.jpg   binary
+*.jpeg  binary
+*.png   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+
+# Generated: collapse in GitHub diffs and exclude from language stats.
+public/sequence/**        linguist-generated=true
+lib/sequence-manifest.json linguist-generated=true
+lib/portrait-manifest.json linguist-generated=true

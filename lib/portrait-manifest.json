@@ -1,0 +1,32 @@
+{
+  "portraits": {
+    "hero": {
+      "width": 1376,
+      "height": 768,
+      "blurDataURL": "data:image/webp;base64,UklGRmYAAABXRUJQVlA4IFoAAADwAQCdASoQAAkAA4BaJbACdAEf2cf7rwAA/vFUqLiubKtTnujkKGTk0QdZHd8mNu7Etpj2A5Tqe+4leEU+K6CXGxk9NfTZ4u7GIz2vgKt8v8Vl4GegrjuAAAA=",
+      "fallback": "/portrait/hero-fallback.jpg",
+      "sources": [
+        {
+          "w": 480,
+          "avif": "/portrait/hero-480.avif",
+          "webp": "/portrait/hero-480.webp"
+        },
+        {
+          "w": 768,
+          "avif": "/portrait/hero-768.avif",
+          "webp": "/portrait/hero-768.webp"
+        },
+        {
+          "w": 1024,
+          "avif": "/portrait/hero-1024.avif",
+          "webp": "/portrait/hero-1024.webp"
+        },
+        {
+          "w": 1376,
+          "avif": "/portrait/hero-1376.avif",
+          "webp": "/portrait/hero-1376.webp"
+        }
+      ]
+    }
+  }
+}
