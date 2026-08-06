@@ -1,22 +1,27 @@
 /**
- * Post-export step for the Hostinger static deploy.
+ * Post-export audit for the Hostinger static deploy. Runs as `postbuild`.
  *
- * 1. Copies deploy/.htaccess into out/. Next does not reliably carry dotfiles
- *    from public/ into the export, and without this file every caching,
- *    compression and security rule is missing on the server.
- * 2. Audits the bundle: total size, heaviest files, and a check that no
- *    localhost URL leaked into the HTML (which would break in production while
- *    looking fine locally).
+ * This script is a GATE, not a build step. `.htaccess` lives in `public/`, which
+ * Next copies into the export by itself (verified — it does carry dotfiles), so
+ * a deploy assembled without ever running this script is still complete. That is
+ * deliberate: nothing load-bearing should depend on a lifecycle hook that a
+ * future toolchain change might skip.
  *
- * Runs automatically as `postbuild`.
+ * What it does:
+ *  1. Verifies the export actually contains the files a deploy cannot work
+ *     without, and fails loudly naming any that are missing.
+ *  2. Fails if a localhost URL leaked into the HTML — that breaks in production
+ *     while looking perfectly fine locally.
+ *  3. Prints a size audit, so a regression like a 936 KB PNG social card is
+ *     visible instead of silently shipped.
  */
-import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = join(ROOT, 'out')
-const HTACCESS_SRC = join(ROOT, 'deploy', '.htaccess')
+const HTACCESS_SRC = join(ROOT, 'public', '.htaccess')
 
 if (!existsSync(OUT)) {
   // A bare "out/ is missing" is not actionable. The realistic causes are a
@@ -65,13 +70,22 @@ if (!existsSync(OUT)) {
   process.exit(1)
 }
 
-// ── 1. .htaccess ────────────────────────────────────────────────────────────
+// ── 1. Server rules ─────────────────────────────────────────────────────────
+// Next copies public/.htaccess into the export on its own; this only confirms it
+// arrived. Without it the site loses HTTPS redirect, cache headers, compression,
+// AVIF/WebP MIME types, the security headers and the 404 wiring — all silently.
 if (!existsSync(HTACCESS_SRC)) {
-  console.error('\n  [export]  deploy/.htaccess is missing — the upload would have no server rules\n')
+  console.error('\n  [export]  public/.htaccess is missing from the repository.\n')
   process.exit(1)
 }
-copyFileSync(HTACCESS_SRC, join(OUT, '.htaccess'))
-console.log('  [export]  .htaccess -> out/.htaccess')
+if (!existsSync(join(OUT, '.htaccess'))) {
+  console.error(
+    '\n  [export]  public/.htaccess exists but did not reach out/.\n' +
+      '            Next normally copies it. Copy it manually before uploading.\n'
+  )
+  process.exit(1)
+}
+console.log('  [export]  .htaccess present in out/')
 
 // ── 2. Audit ────────────────────────────────────────────────────────────────
 function walk(dir, files = []) {

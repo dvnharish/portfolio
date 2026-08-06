@@ -60,8 +60,8 @@ jobs:
       - run: npm ci
 
       # prebuild regenerates the frame manifest, image derivatives and OG card.
-      # postbuild copies deploy/.htaccess into out/ and fails the build on a
-      # leaked localhost URL or a missing required file.
+      # postbuild audits the export: fails on a leaked localhost URL or any
+      # missing required file. public/.htaccess is copied by Next itself.
       - name: Build static export
         run: npm run build
         env:

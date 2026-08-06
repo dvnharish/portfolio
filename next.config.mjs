@@ -10,7 +10,8 @@ const nextConfig = {
    *
    * Consequences, all handled:
    *  - `headers()` is not supported here and would be silently ignored, so all
-   *    caching and compression rules live in `deploy/.htaccess` instead.
+   *    caching, compression and security rules live in `public/.htaccess`, which
+   *    Next copies into the export verbatim.
    *  - Next's image optimizer does not run. Rather than shipping originals via
    *    `images.unoptimized`, portraits are pre-encoded to AVIF/WebP at several
    *    widths by scripts/build-images.mjs and served through a plain <picture>

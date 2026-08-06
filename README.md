@@ -145,7 +145,7 @@ with no toolchain behind it.
 
 | Constraint | Handling |
 | --- | --- |
-| `headers()` is silently ignored | All caching, compression, MIME and security headers live in `deploy/.htaccess` |
+| `headers()` is silently ignored | All caching, compression, MIME and security headers live in `public/.htaccess`, which Next copies into the export |
 | Next's image optimizer does not run | Portraits are pre-encoded to AVIF/WebP at 4 widths by `scripts/build-images.mjs` and served via `<picture>` (`components/Photo.tsx`) |
 | `next start` unavailable | Removed; use `npm run preview` |
 | No middleware / route handlers / ISR | Not used by this site |
