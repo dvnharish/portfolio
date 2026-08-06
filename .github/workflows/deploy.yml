@@ -52,6 +52,15 @@ jobs:
       contents: write
     # Create this environment in repo Settings to add a manual approval gate.
     environment: production
+    # Secrets are surfaced as env vars because the `secrets` context is NOT
+    # available in a step-level `if:` - referencing it there makes the whole
+    # workflow file invalid ("Unrecognized named-value: 'secrets'"), so nothing
+    # runs at all. `env` is available in `if`, so the optional FTP step is gated
+    # on these instead.
+    env:
+      FTP_HOST: ${{ secrets.FTP_HOST }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -115,14 +124,14 @@ jobs:
       # Optional second channel. Runs only if the FTP secrets are configured, so
       # the Git-based deploy above works with no setup.
       - name: Upload to Hostinger over FTPS
-        if: ${{ secrets.FTP_HOST != '' }}
+        if: env.FTP_HOST != ''
         # Pinned to a release tag. This action receives your FTP credentials, so
         # pinning to a commit SHA instead is stronger - see README.
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ env.FTP_HOST }}
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
           protocol: ftps
           port: 21
           local-dir: ./out/
