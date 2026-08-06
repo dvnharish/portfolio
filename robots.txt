@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+
+Host: https://harishduddupudi.com
+Sitemap: https://harishduddupudi.com/sitemap.xml
